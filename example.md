@@ -1,0 +1,2 @@
+- [ ] Some pending task
+- [x] A task that is done alraedy
