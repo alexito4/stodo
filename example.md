@@ -1,2 +1,3 @@
 - [ ] Some pending task
+- [ ] Streaming this development is cool!
 - [x] A task that is done alraedy

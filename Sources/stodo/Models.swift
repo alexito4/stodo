@@ -67,3 +67,17 @@ struct List {
         }
     }
 }
+
+extension Array where Element == List {
+    
+    func save(to filePath: String) throws {
+        let tasks = self.flatMap { list in
+            list.elements.map { task in
+                "- [\(task.completed ? "x" : " ")] \(task.text)"
+            }
+        }
+        let contents = tasks.joined(separator: "\n")
+        try contents.write(toFile: filePath, atomically: true, encoding: .utf8)
+    }
+    
+}

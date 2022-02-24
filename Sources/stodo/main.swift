@@ -1,9 +1,46 @@
 import Foundation
 import Darwin.ncurses
+import ArgumentParser
+import Parsing
 
-// TODO: Inser new todo
-// TODO: Read from file with markdown todos
-// TODO: Save to file
+// TODO: Insert new todo
+// TODO: look at the windows???
+// TODO: edit todos?
+
+
+struct Arguments: ParsableArguments {
+    @Argument(help: "File with Markdown tasks format.")
+    var file: String
+}
+
+let arguments = Arguments.parseOrExit()
+let filePath = arguments.file
+let file = try String(contentsOfFile: filePath)
+print(file)
+
+let todoLine = Parse(Todo.init(completed:text:)) {
+    "- ["
+    OneOf {
+        " ".map { false }
+        "x".map { true }
+    }
+    "] "
+    Prefix { $0 != "\n" }.map(String.init)
+}
+let todosParser = Many {
+    todoLine
+} separator: {
+    Newline()
+} terminator: {
+    End()
+}
+
+var input = file[...]
+let result = try todosParser.parse(&input)
+var todos = List(name: "TODO", current: 0, elements: result.filter { !$0.completed })
+var dones = List(name: "DONE", current: 0, elements: result.filter { $0.completed })
+
+var currentTab = 0
 
 setlocale(LC_CTYPE, "en_US.UTF-8")
 initscr()
@@ -14,16 +51,7 @@ use_default_colors()
 //timeout(500)
 defer { endwin() }
 
-var todos = List(name: "TODO", current: 0, elements: [
-    Todo(completed: false, text: "First task"),
-    Todo(completed: false, text: "Second task"),
-])
-var dones = List(name: "DONE", current: 0, elements: [
-    Todo(completed: true, text: "Stream the development of this"),
-    Todo(completed: true, text: "Will this long and done todo go multiline or what"),
-    Todo(completed: true, text: "This will be cut")
-])
-var currentTab = 0
+
 
 var lastInputChar = ""
 
@@ -121,7 +149,7 @@ while !quit {
                 todos.add(todo)
             }
         }
-        
+        try [todos, dones].save(to: filePath)
     case "\t".ascii32:
         if currentTab == 0 {
             currentTab = 1
@@ -135,3 +163,5 @@ while !quit {
 
 delwin(left)
 delwin(right)
+
+try [todos, dones].save(to: filePath)
