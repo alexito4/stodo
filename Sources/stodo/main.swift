@@ -3,10 +3,10 @@ import Darwin.ncurses
 import ArgumentParser
 import Parsing
 
-// TODO: Insert new todo
-// TODO: look at the windows???
-// TODO: edit todos?
-
+// TODO: Edit todos.
+// TODO: Look at the Windows.
+// TODO: Improvements with window handling. Multiple lines. Scrolling.
+// TODO: Watch for file changes.
 
 struct Arguments: ParsableArguments {
     @Argument(help: "File with Markdown tasks format.")
@@ -39,6 +39,9 @@ var input = file[...]
 let result = try todosParser.parse(&input)
 var todos = List(name: "TODO", current: 0, elements: result.filter { !$0.completed })
 var dones = List(name: "DONE", current: 0, elements: result.filter { $0.completed })
+func save() throws {
+    try [todos, dones].save(to: filePath)
+}
 
 var currentTab = 0
 
@@ -58,6 +61,15 @@ var lastInputChar = ""
 let left = newwin(0, 0, 0, 0)!
 let right = newwin(0, 0, 0, 0)!
 
+var createMode = false {
+    didSet {
+        if createMode {
+            echo()
+        } else {
+            noecho()
+        }
+    }
+}
 var quit = false
 while !quit {
     refresh()
@@ -106,9 +118,9 @@ while !quit {
         
     // Bottom bar
     do {
-        var bottomBar = "`q` to quit."
+        var bottomBar = "`q` to quit. `c` to create a new task."
         #if DEBUG
-        bottomBar.append("\t\tw: \(width) h: \(height) - \(lastInputChar) \(KEY_ENTER)")
+        bottomBar.append("\t\tc? \(createMode) w: \(width) h: \(height) - \(lastInputChar) \(KEY_ENTER)")
         #endif
         attron(reversed)
         let y = height - 1
@@ -122,46 +134,67 @@ while !quit {
     wrefresh(right)
     
     // Handle input
-    let input = getch()
-    lastInputChar = "\(input)"
-    switch input {
-    case "q".ascii32: // quit
-        quit = true
-    case KEY_UP:
-        if currentTab == 0 {
-            todos.up()
-        } else {
-            dones.up()
-        }
-    case KEY_DOWN:
-        if currentTab == 0 {
-            todos.down()
-        } else {
-            dones.down()
-        }
-    case "\n".ascii32, " ".ascii32:
-        if currentTab == 0 {
-            if let todo = todos.select() {
-                dones.add(todo)
+    if createMode {
+        
+        mvaddstr(height - 2, 0, "New task:")
+        
+        
+        let cstring = UnsafeMutablePointer<CChar>
+            .allocate(capacity: 1024)
+        defer { cstring.deallocate() }
+        
+        getstr(cstring)
+        
+        let input = String(cString: cstring)
+        
+        todos.elements.append(.init(completed: false, text: input))
+        try save()
+        
+        createMode = false
+    } else {
+        let input = getch()
+        lastInputChar = "\(input)"
+        switch input {
+        case "q".ascii32: // quit
+            quit = true
+        case "c".ascii32: // create mode
+            createMode = true
+        case KEY_UP:
+            if currentTab == 0 {
+                todos.up()
+            } else {
+                dones.up()
             }
-        } else {
-            if let todo = dones.select() {
-                todos.add(todo)
+        case KEY_DOWN:
+            if currentTab == 0 {
+                todos.down()
+            } else {
+                dones.down()
             }
+        case "\n".ascii32, " ".ascii32:
+            if currentTab == 0 {
+                if let todo = todos.select() {
+                    dones.add(todo)
+                }
+            } else {
+                if let todo = dones.select() {
+                    todos.add(todo)
+                }
+            }
+            try save()
+        case "\t".ascii32:
+            if currentTab == 0 {
+                currentTab = 1
+            } else {
+                currentTab = 0
+            }
+        default:
+            break
         }
-        try [todos, dones].save(to: filePath)
-    case "\t".ascii32:
-        if currentTab == 0 {
-            currentTab = 1
-        } else {
-            currentTab = 0
-        }
-    default:
-        break
     }
 }
 
 delwin(left)
 delwin(right)
 
-try [todos, dones].save(to: filePath)
+try save()

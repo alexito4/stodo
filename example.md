@@ -1,3 +1,5 @@
+- [ ] This is a new task!
 - [ ] Some pending task
-- [ ] Streaming this development is cool!
-- [x] A task that is done alraedy
+- [ ] This is not saved instantly
+- [x] A task that is done already
+- [x] Streaming this development
