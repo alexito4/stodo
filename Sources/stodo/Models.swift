@@ -30,6 +30,9 @@ struct State {
     }
 
     mutating func addTask(_ text: String) {
+        if let last = data.last, last.todo == nil {
+            data.append(.unrecognized(""))
+        }
         data.append(
             .task(.init(completed: false, text: text))
         )
